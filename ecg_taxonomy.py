@@ -139,7 +139,7 @@ def HR_mean(paciente,fs):
     -----------
     Frecuencia cardíaca media
     """
-    R=paciente['locs_Rav']
+    R=paciente['locs_R']
     R = [np.nan if x == "NA" else x for x in R]
     RR=[]
     HR=[]
@@ -147,6 +147,8 @@ def HR_mean(paciente,fs):
         RR.append(R[ind+1]/fs - R[ind]/fs)
         HR.append(1/(R[ind+1]/fs - R[ind]/fs)*60)
     HR_mean=round(np.mean(HR))
+    RR = list(map(lambda x: x * 1000, RR))
+    RR =  np.round(RR,3)
     return HR_mean, RR
 #%%
 fs=250
@@ -159,3 +161,55 @@ amplitudT = amplitud_T(persona,fs)
 duracionPR = duracion_PR(persona, fs)
 amplitudP1P2 = amplitud_P1_P2(persona,fs)
 HRmean, RR = HR_mean(persona,fs)
+
+#%%
+"""
+TAXONOMY
+"""
+
+def taxonomy(paciente,fs):
+    # La onda P debe durar menos de 120 ms
+    duracionP = np.mean(duracion_P(paciente,fs))
+    
+    # La amplitud de la onda P debe ester entre 0.15 y 0.2 mV
+    amplitudP = np.mean(amplitud_P(paciente,fs))
+    
+    # La duración del complejo QRS debe estar entre 80 y 120 ms
+    duracionQRS = np.mean(duracion_QRS(paciente,fs))
+    
+    # La amplitud de la onda T debe ser positiva
+    amplitudT = np.mean(amplitud_T(paciente,fs))
+    
+    # El segmento PR debe durar menos de 200 ms 
+    duracionPR = np.mean(duracion_PR(paciente, fs))
+    
+    amplitudP1, amplitudP2 = amplitud_P1_P2(paciente,fs)
+    amplitudP1 = np.mean(amplitudP1)
+    amplitudP2 = np.mean(amplitudP2)
+    
+    # HRmean esta normal entre 60 y 100 ms, RR dura entre 600 y 1200 ms
+    HRmean, RR = HR_mean(paciente,fs)
+    
+    # El intervalo RR debe ser regular
+    diffRR = np.diff(RR)
+    
+    if duracionPR > 200:
+        print('Bloqueo AV')
+    
+    elif (amplitudP1 - amplitudP2) > 0.05:
+        print('Latido atrial prematuro')
+    
+    elif duracionQRS > 120:
+        print('Bloqueo de rama')
+    
+    elif HRmean < 60:
+        print('Bradicardia')
+    
+    elif HRmean > 100:
+        print('Taquicardia')
+        if  duracionQRS < 120:
+            print('Taquicardia supraventricular')
+             
+
+
+    
