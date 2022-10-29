@@ -7,26 +7,31 @@ Created on Mon Oct 24 20:44:22 2022
 import pandas as pd
 import numpy as np
 import json
-from visualization_ecg import plot_ecg, plot_original_ecg, plot_ecg_fiducial_points, plot_ecg_fiducial_points2
+import matplotlib.pyplot as plt
+from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_points2
 from fiducial_point_detection import butterworth_bandpass_filter, signal_average, normalization, find_fiducial_points, find_R
 
+# Puntos fiduciales calculados en R
 
+
+path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
+with open(path_fiducial) as f:
+    fiducial_pooints = json.load(f)
+    
 """
 Se cargan los datos de ecg
 """
 path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
-ecg_70=pd.read_csv(path,sep=" ")
 
+ecg_70=pd.read_csv(path,sep=" ")
 # Se transponen los datos  (68,240000) = (individuo, observaciones)
 ecg_70=ecg_70.transpose()
-
 # Se modifican los índices para que sean de 0 a 67
 ecg_70.index = list(range(len(ecg_70)))
-
 ecg1=ecg_70.iloc[1]
 
 
-t=np.linspace(0,120,240000)
+
 # Setting standard filter requirements.
 order = 3
 fs = 2000       
@@ -57,23 +62,21 @@ locs_R = find_R(ecg_normalized, height=0.8, distance=0.3*fs)
 ecg_average=signal_average(ecg_normalized,locs_R,fs)
 
 # detección de picos S 
-
 fiducial = find_fiducial_points(ecg_average,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
-#%%
 
 
 
-path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
-with open(path_fiducial) as f:
-    fiducial_pooints = json.load(f)
-segundos=2
-
+    
+    
+    
+    
+#segundos=1
 # Lista de personas
-Lista_id=[1]
+#Lista_id=[1]
 
-plot_ecg_fiducial_points2(fiducial_pooints,Lista_id,segundos=segundos,fs=2000)
-plt.show()
-plot_ecg_fiducial_points(fiducial,segundos=segundos,fs=2000)
+#plot_ecg_fiducial_points2(fiducial_pooints,Lista_id,segundos=segundos,fs=2000)
+#plt.show()
+#plot_ecg_fiducial_points(fiducial,segundos=segundos,fs=2000)
 
 
 
