@@ -60,6 +60,9 @@ ecg_average=signal_average(ecg_normalized,locs_R,fs)
 
 fiducial = find_fiducial_points(ecg_average,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
 #%%
+
+
+
 path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
 with open(path_fiducial) as f:
     fiducial_pooints = json.load(f)
@@ -67,13 +70,10 @@ segundos=2
 
 # Lista de personas
 Lista_id=[1]
-import matplotlib.pyplot as plt
 
 plot_ecg_fiducial_points2(fiducial_pooints,Lista_id,segundos=segundos,fs=2000)
 plt.show()
 plot_ecg_fiducial_points(fiducial,segundos=segundos,fs=2000)
-
-
 
 
 

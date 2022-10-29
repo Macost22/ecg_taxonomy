@@ -114,9 +114,8 @@ def plot_ecg_fiducial_points(fiducial,segundos,fs):
                 
     """
     #tiempo
-    end=int(len(fiducial['ecg_average'])/fs)
-    step=len(fiducial['ecg_average'])
-    tiempo=np.linspace(0,end,step)
+    n_valores=len(fiducial['ecg_average'])
+    tiempo=np.linspace(1,n_valores,n_valores)/fs
     # Se escala el tamaño del plot
     factor=2
     plt.rcParams['figure.figsize'] = [segundos*5*factor, 2*factor]
@@ -139,7 +138,7 @@ def plot_ecg_fiducial_points(fiducial,segundos,fs):
         if key !="ecg_average":
             for i in range(0,len(fiducial[key])):
                 y=(fiducial[key][i])
-                x=y/fs
+                x=y+1/fs
                 if y < int(segundos*fs):                    
                     plt.scatter(x, ecg[y],marker=dic[key][0],color=dic[key][1])
 
