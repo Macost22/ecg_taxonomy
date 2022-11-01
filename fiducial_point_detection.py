@@ -6,13 +6,11 @@ Created on Mon Oct 10 14:48:14 2022
 """
 
 import numpy as np
-from scipy.signal import butter, filtfilt
 from scipy.signal import find_peaks
-
-    
-"""
-funciones para filtrar las señales de ecg con filtro Butterworth pasa bajas y altas
-"""
+import pandas as pd
+from scipy.signal import butter, filtfilt
+from visualization_ecg import plot_ecg_fiducial_points, plot_ecg_fiducial_points2, plot_original_ecg
+import json
 
 def butterworth(cutoff, fs, order,btype):
     nyq = 0.5 * fs
@@ -34,9 +32,11 @@ def butterworth_bandpass_filter(data,cutoff_low,cutoff_high,fs,order):
     return data_filtered
 
 
-"""
- averaging ecg signal
-"""
+def normalization(signal):
+    signal_max, signal_min = np.max(signal), np.min(signal)
+    signal_normalized=(signal - signal_min)/(signal_max - signal_min)
+    return signal_normalized
+
 def signal_average(signal, locs_R, fs):
     # longitud de cada segmento que se va a extraer (750 ms)
     segment=int(0.75*fs)
@@ -74,14 +74,7 @@ def signal_average(signal, locs_R, fs):
     ecg_average=ECG.flatten(order='F')
     return ecg_average
 
-""" 
-proceso de normalización 
 
-"""
-def normalization(signal):
-    signal_max, signal_min = np.max(signal), np.min(signal)
-    signal_normalized=(signal - signal_min)/(signal_max - signal_min)
-    return signal_normalized
 
 """
 Calculo de puntos fiduciales 
@@ -208,3 +201,74 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
                     'locs_P':locs_P, 'locs_P1':locs_P1, 'locs_P2':locs_P2, 'locs_T1':locs_T1, 'locs_T2':locs_T2,'ecg_average':signal,'tiempo':tiempo}
 
     return fiducial_point
+
+if __name__ == '__main__':
+    #Se cargan los datos de ecg
+    
+    path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
+
+    ecg_70=pd.read_csv(path,sep=" ")
+    # Se transponen los datos  (68,240000) = (individuo, observaciones)
+    ecg_70=ecg_70.transpose()
+    # Se modifican los índices para que sean de 0 a 67
+    ecg_70.index = list(range(len(ecg_70)))
+    signal=ecg_70.iloc[4]
+    fs=2000
+    Wn_low=100
+    Wn_high=1
+    #
+    gr_r = 0.8
+    gr2 = 0.1 * fs # max number of samples for RS distance  
+    gr3 = 0.32 * fs # max number of samples for ST distance = 0.32[s]*fs #640
+    gr4 = 0.05 * fs # max QR distance
+    gr5 = 0.2 * fs # max PQ distance
+    gr6 = 0.08 *fs # max PP1 distance (P1 - beginning of P wave) 
+    gr7 = 0.065 * fs  # max PP2 distance (P2 - end of P wave)
+    gr8 = 0.1 * fs # max TT1 distance (T1 - beginning of T wave)
+    gr9 = 0.1 * fs # max of TT2 distance (T2 - end of T wave)
+    gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
+    
+    # Filtrado de la señal
+    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
+    
+    # Normalización de la señal
+    signal_normalized = normalization(signal_filtered)
+    
+    """
+    # R peak detection
+    library(pracma)
+    gr_r <- 0.8
+    n_R <- (length(ecg)*40)/(fs*60)
+    pikovi <- findpeaks(ecg, minpeakheight = gr_r, minpeakdistance = 0.3 * fs)
+    
+    
+    if (length(pikovi[,2])<n_R){
+      while (gr_r > 0.05){
+        
+        gr_r <- gr_r-0.05
+        print(gr_r)}
+      pikovi <- findpeaks(ecg, minpeakheight = gr_r, minpeakdistance = 0.3 * fs)}
+    
+    locs_R <- pikovi[,2]# + min(t)*fs
+    locs_R <- sort(locs_R) 
+    """
+    
+    # Ubicación de los picos R en la señal
+    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs)
+    
+    
+    
+    plot_original_ecg(signal_normalized, 5,2000)
+    # Promediado de la señal
+    #signal_av = signal_average(signal_normalized, locs_R, fs) 
+    
+    # Extracción de puntos fiduciales de la señal
+    #fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+
+    #plot_ecg_fiducial_points(fiducial,segundos=2,fs=2000)
+    
+    #path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
+    #with open(path_fiducial) as f:
+    #    fiducial_points = json.load(f)
+    #Lista_id=[2]   
+    #plot_ecg_fiducial_points2(fiducial_points,Lista_id,segundos=2,fs=2000)

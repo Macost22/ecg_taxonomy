@@ -57,7 +57,7 @@ def plot_ecg(tiempo,ecg,titulo):
 
 
 # Se crea funcion plot_original_ecg 
-def plot_original_ecg(ecg_df,etiquetas,lista_sujetos,segundos,fs):
+def plot_original_ecg(ecg,segundos,fs):
         """
         Esta función permite graficar los ECG originales sin filtrar y promediar, 
         con el color adecuado que representa su etiqueta, 
@@ -79,16 +79,11 @@ def plot_original_ecg(ecg_df,etiquetas,lista_sujetos,segundos,fs):
         """
         # Se escala el tamaño del plot
         
-        tiempo=np.linspace(0,120,240000)
-        color_line={1:"blue",2:"red",3:"green",4:"cyan",5:"purple",6:"pink",7:"brown"}
-        for sujeto in lista_sujetos:
-            # Se identifica la etiqueta del sujeto
-            label=etiquetas['Y'][sujeto]
-            # Se indentifica el sujeto en el archivo dataframe
-            ecg=ecg_df.iloc[sujeto]
-            # Se llama la función plot_ecg para visualizar el ECG del sujeto
-            titulo= "ECG id{}".format(list(lista_sujetos))
-            plot_ecg(tiempo[0:int(segundos*fs)],ecg[0:int(segundos*fs)],color_line,label,titulo)
+        tiempo=np.linspace(0,120,240000)       
+
+        # Se llama la función plot_ecg para visualizar el ECG del sujeto
+        titulo= "ECG "
+        plot_ecg(tiempo[0:int(segundos*fs)],ecg[0:int(segundos*fs)],titulo)
 
 # Se crea la función plot_ecg_fiducial_points
 def plot_ecg_fiducial_points(fiducial,segundos,fs):
