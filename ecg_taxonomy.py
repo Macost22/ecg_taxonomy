@@ -8,25 +8,7 @@ import os
 import json
 from visualization_ecg import plot_ecg_fiducial_points2
 import numpy as np
-# Encontrar directoria de trabajo 
 
-# Path fiducial_point.json
-path_fiducial_True=path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points_true.json'
-
-
-# Se carga el archivo fiducial_points.json
-with open(path_fiducial_True) as f:
-    fiducial_true = json.load(f)
-
-segundos=2
-
-# Lista de personas
-Lista_id=[2]
-
-
-plot_ecg_fiducial_points2(fiducial_true,Lista_id,segundos=segundos,fs=250)
-
-#%%
 
 """
 Definición de funciones para realizar medidas en el ECG
@@ -150,19 +132,6 @@ def HR_mean(paciente,fs):
     RR = list(map(lambda x: x * 1000, RR))
     RR =  np.round(RR,3)
     return HR_mean, RR
-#%%
-fs=250
-persona=fiducial_true[2]
-
-duracionP = duracion_P(persona,fs)
-amplitudP = amplitud_P(persona,fs)
-duracionQRS = duracion_QRS(persona,fs)
-amplitudT = amplitud_T(persona,fs)
-duracionPR = duracion_PR(persona, fs)
-amplitudP1P2 = amplitud_P1_P2(persona,fs)
-HRmean, RR = HR_mean(persona,fs)
-
-#%%
 """
 TAXONOMY
 """
@@ -194,22 +163,46 @@ def taxonomy(paciente,fs):
     diffRR = np.diff(RR)
     
     if duracionPR > 200:
-        print('Bloqueo AV')
+        print('Bloqueo AV \n')
     
     elif (amplitudP1 - amplitudP2) > 0.05:
-        print('Latido atrial prematuro')
+        print('Latido atrial prematuro \n')
     
     elif duracionQRS > 120:
-        print('Bloqueo de rama')
+        print('Bloqueo de rama \n')
     
     elif HRmean < 60:
-        print('Bradicardia')
+        print('Bradicardia \n')
     
     elif HRmean > 100:
         print('Taquicardia')
         if  duracionQRS < 120:
-            print('Taquicardia supraventricular')
+            print('Taquicardia supraventricular \n')
              
 
 
+if __name__ == '__main__':
+    
+    # Encontrar directoria de trabajo 
+    # Path fiducial_point.json
+    path_fiducial_True=path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points_true.json'
+
+
+    # Se carga el archivo fiducial_points.json
+    with open(path_fiducial_True) as f:
+        fiducial_true = json.load(f)
+        
+    fs=250
+    for persona in range(len(fiducial_true)):
+        paciente = fiducial_true[persona]
+        
+        print('Paciente {}'.format(persona))
+        taxonomy(paciente, fs)
+        
+        #segundos=2
+        # Lista de personas
+        #Lista_id=[2]
+        #plot_ecg_fiducial_points2(fiducial_true,Lista_id,segundos=segundos,fs=250)
+    
+    
     
