@@ -7,7 +7,6 @@ Created on Tue Oct 25 00:58:49 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
-
 from pylab import *
 from matplotlib.ticker import MultipleLocator
 
@@ -57,7 +56,7 @@ def plot_ecg(tiempo,ecg,titulo):
 
 
 # Se crea funcion plot_original_ecg 
-def plot_original_ecg(ecg,segundos,fs):
+def plot_original_ecg(ecg,t_start,t_end,fs):
         """
         Esta función permite graficar los ECG originales sin filtrar y promediar, 
         con el color adecuado que representa su etiqueta, 
@@ -78,15 +77,25 @@ def plot_original_ecg(ecg,segundos,fs):
         plot
         """
         # Se escala el tamaño del plot
+        # Tiempo para ecg_70 de personas sanas
+        #tiempo=np.linspace(0,120,240000) 
         
-        tiempo=np.linspace(0,120,240000)       
+        #Tiempo para casos de arritmia
+        n_valores = len(ecg)
+        stop = n_valores/fs
+        #tiempo = np.linspace(1,n_valores,n_valores)/fs
+        tiempo = np.linspace(0,stop,n_valores)
 
         # Se llama la función plot_ecg para visualizar el ECG del sujeto
         titulo= "ECG "
-        plot_ecg(tiempo[0:int(segundos*fs)],ecg[0:int(segundos*fs)],titulo)
+        
+        t_start = int(t_start*fs)
+        t_end = int(t_end*fs)
+        
+        plot_ecg(tiempo[t_start:t_end],ecg[t_start:t_end],titulo)
 
 # Se crea la función plot_ecg_fiducial_points
-def plot_ecg_fiducial_points(fiducial,segundos,fs):
+def plot_ecg_fiducial_points(fiducial,t_start,t_end,fs):
     """Esta función permite graficar los ECG (filtrados y promediados) con sus respectivos 
         puntos fiduaciales.
         
@@ -111,6 +120,7 @@ def plot_ecg_fiducial_points(fiducial,segundos,fs):
     #tiempo
     tiempo =  fiducial['tiempo']
     # Se escala el tamaño del plot
+    segundos = int(t_end - t_start)
     factor=2
     plt.rcParams['figure.figsize'] = [segundos*5*factor, 2*factor]
     # Diccionario que almacena el formato y color con el que se desea visualizar el punto fiducial
@@ -126,18 +136,20 @@ def plot_ecg_fiducial_points(fiducial,segundos,fs):
     ecg=fiducial["ecg_average"]
     # Se llama la función plot_ecg para visualizar el ECG del sujeto
     titulo="Detection of the ECG fiducial points "
-    plot_ecg(tiempo[0:int(segundos*fs)],ecg[0:int(segundos*fs)],titulo)   
+    t_start = int(t_start*fs)
+    t_end = int(t_end*fs)
+    plot_ecg(tiempo[t_start:t_end],ecg[t_start:t_end],titulo)
 
     for key in fiducial.keys(): 
-        if key !="ecg_average" and key != 'tiempo':
+        if key != "ecg_average" and key != 'tiempo':
             for i in range(0,len(fiducial[key])):
                 y=(fiducial[key][i])
-                x=y/fs
-                if y < int(segundos*fs):                    
+                x=y/fs   
+                if y > t_start and y < t_end:                                             
                     plt.scatter(x, ecg[y],marker=dic[key][0],color=dic[key][1])
 
 # Se crea la función plot_ecg_fiducial_points
-def plot_ecg_fiducial_points2(fiducial,lista_sujetos,segundos,fs):
+def plot_ecg_fiducial_points2(fiducial,lista_sujetos,t_start,t_end,fs):
     """Esta función permite graficar los ECG (filtrados y promediados) con sus respectivos 
         puntos fiduaciales.
         
@@ -160,6 +172,7 @@ def plot_ecg_fiducial_points2(fiducial,lista_sujetos,segundos,fs):
                 
     """
     # Se escala el tamaño del plot
+    segundos = int(t_end - t_start)
     factor=2
     plt.rcParams['figure.figsize'] = [segundos*5*factor, 2*factor]
     # Diccionario que almacena el formato y color con el que se desea visualizar el punto fiducial
@@ -179,7 +192,9 @@ def plot_ecg_fiducial_points2(fiducial,lista_sujetos,segundos,fs):
         tiempo=fiducial[sujeto]["tiempo"]
         # Se llama la función plot_ecg para visualizar el ECG del sujeto
         titulo="Detection of the ECG fiducial points of {} individuals".format(len(lista_sujetos))
-        plot_ecg(tiempo[0:int(segundos*fs)],ecg[0:int(segundos*fs)],titulo)
+        t_start = int(t_start*fs)
+        t_end = int(t_end*fs)
+        plot_ecg(tiempo[t_start:t_end],ecg[t_start:t_end],titulo)
        
     
         for key in fiducial[sujeto].keys(): 
@@ -187,7 +202,7 @@ def plot_ecg_fiducial_points2(fiducial,lista_sujetos,segundos,fs):
                 for i in range(0,len(fiducial[sujeto][key])):
                     y=(fiducial[sujeto][key][i])
                     x=y/fs
-                    if y < int(segundos*fs):                    
+                    if y > t_start  and y < t_end:                   
                         plt.scatter(x, ecg[y],marker=dic[key][0],color=dic[key][1])                       
                                
 

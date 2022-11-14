@@ -5,7 +5,6 @@ Created on Mon Oct 24 20:44:22 2022
 @author: Melissa
 """
 import pandas as pd
-import numpy as np
 import json
 import matplotlib.pyplot as plt
 from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_points2
@@ -35,7 +34,7 @@ def main(signal, fs, Wn_low, Wn_high):
     signal_normalized = normalization(signal_filtered)
     
     # Ubicación de los picos R en la señal
-    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs)
+    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs, fs=fs)
     
     # Promediado de la señal
     signal_av = signal_average(signal_normalized, locs_R, fs) 
@@ -46,7 +45,7 @@ def main(signal, fs, Wn_low, Wn_high):
     return fiducial        
     
     
-def load_data(file_path):
+def load_data_personality_traits(file_path):
     ecg_70=pd.read_csv(path,sep=" ")
     # Se transponen los datos  (68,240000) = (individuo, observaciones)
     ecg_70=ecg_70.transpose()
@@ -54,6 +53,15 @@ def load_data(file_path):
     ecg_70.index = list(range(len(ecg_70)))
     #ecg1=ecg_70.iloc[1]
     return ecg_70
+
+def load_data_arrhythmia(file_path):
+    ecg=pd.read_csv(file_path,sep=" ",index_col=0)
+    # Se transponen los datos  (68,240000) = (individuo, observaciones)
+    ecg=ecg.transpose()
+    # Se modifican los índices para que sean de 0 a 67
+    ecg.index = list(range(len(ecg)))
+    #ecg1=ecg_70.iloc[1]
+    return ecg
     
 
 
@@ -61,44 +69,36 @@ def load_data(file_path):
 if __name__ == '__main__':
     
     # Path de los ecg a analizar
+    # Estos tiene una fs= 2000,  Wn_low = 100 y Wn_high = 1
     path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
-    signals = load_data(path)
+    
+    # Estos tiene una fs= 250,  Wn_low = 60 y Wn_high = 0.5
+    path_arritmia = 'C:/Users/melis/Desktop/Bioseñales/MIMIC/MIMIC_arritmia.txt'
+    signals = load_data_arrhythmia(path_arritmia)
     
     # Se analiza cada ecg dentro del ciclo for, para así obtener los puntos fiduciales
     for signal in range(len(signals)):
-        try:
             print(signal)
             ecg = signals.iloc[signal]
-            ecg_fiducial = main(signal = ecg, fs = 2000, Wn_low = 100, Wn_high = 1)
+            ecg_fiducial = main(signal = ecg, fs = 250, Wn_low = 60, Wn_high = 0.5)
             fiducial.append(ecg_fiducial)   
-        except ValueError:
-            print('error en ')
-            print(signal)
-            pass
 
     
-    
-
-
-
-
-
-
-
-
-    
+#%%
 
 
 #path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
-#with open(path_fiducial) as f:
-#    fiducial_pooints = json.load(f)
+path_fiducial= 'C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points_True.json'
+with open(path_fiducial) as f:
+    fiducial_pooints = json.load(f)
     
   
     
-#segundos=1
-# Lista de personas
-#Lista_id=[1]
+start=10
+end=20
+plot_ecg_fiducial_points2(fiducial_pooints,[4],start,end,fs=250)
+plt.show()
+plot_ecg_fiducial_points(fiducial[4],start,end,fs=250)
 
-#plot_ecg_fiducial_points2(fiducial_pooints,Lista_id,segundos=segundos,fs=2000)
-#plt.show()
-#plot_ecg_fiducial_points(fiducial,segundos=segundos,fs=2000)
+                
+                

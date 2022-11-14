@@ -11,6 +11,7 @@ import pandas as pd
 from scipy.signal import butter, filtfilt
 from visualization_ecg import plot_ecg_fiducial_points, plot_ecg_fiducial_points2, plot_original_ecg
 import json
+import matplotlib.pyplot as plt
 
 def butterworth(cutoff, fs, order,btype):
     nyq = 0.5 * fs
@@ -39,7 +40,7 @@ def normalization(signal):
 
 def signal_average(signal, locs_R, fs):
     # longitud de cada segmento que se va a extraer (750 ms)
-    segment=int(0.75*fs)
+    segment=int(round(0.75*fs))
     # número de picos en la señal
     N=len(locs_R)
     # número de segmentos PQRST de la señal de ECG, que sera usados para promediar
@@ -79,8 +80,18 @@ def signal_average(signal, locs_R, fs):
 """
 Calculo de puntos fiduciales 
 """  
-def find_R(signal,height, distance): 
+def find_R(signal,height, distance, fs): 
+    n_R = len(signal)*40/(fs*60)
     locs_R, _ = find_peaks(signal, height=height, distance=distance)
+    while len(locs_R) < n_R:
+        print("locs_R len: {} ".format(len(locs_R)))
+        height -= 0.05
+        print("nuevo gr_r: {}".format(height))
+        locs_R, _ = find_peaks(signal, height=height, distance=distance)  
+        print("nuevo locs_R len: {} \n".format(len(locs_R)))
+     
+        if height < 0.05:
+            break       
     return locs_R 
 
 
@@ -132,11 +143,12 @@ def find_P(signal, locs_Q, gr5):
 
 def find_P1(signal, locs_P, gr6):
     locs_P1=[]
-    for kk in range(len(locs_P)):
-        start = locs_P[kk]
+    for kk in locs_P:
+        start = kk
         end = int(start - gr6)
-        ocs = np.argmin(signal[end:start])
-        locs_P1.append(end + ocs)
+        if end > 0:
+            ocs = np.argmin(signal[end:start])
+            locs_P1.append(end + ocs)
     return locs_P1
     
 def find_P2(signal, locs_P, gr7):
@@ -177,7 +189,7 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     tiempo = np.linspace(0,stop,n_valores)
 
     # Encontrar R 
-    locs_Rav = find_R(signal, gr_r, 0.3*fs)
+    locs_Rav = find_R(signal, gr_r, 0.3*fs, fs)
     # Encontrar S
     locs_S = find_S(signal, locs_Rav, gr2)
     # Encontrar S2
@@ -198,24 +210,31 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     locs_T2 = find_T2(signal, locs_T, gr9) 
     
     fiducial_point={'locs_Rav':locs_Rav, 'locs_S':locs_S,'locs_S2':locs_S2, 'locs_T':locs_T, 'locs_Q':locs_Q, 
-                    'locs_P':locs_P, 'locs_P1':locs_P1, 'locs_P2':locs_P2, 'locs_T1':locs_T1, 'locs_T2':locs_T2,'ecg_average':signal,'tiempo':tiempo}
+                   'locs_P':locs_P, 'locs_P1':locs_P1, 'locs_P2':locs_P2, 'locs_T1':locs_T1, 'locs_T2':locs_T2,'ecg_average':signal,'tiempo':tiempo}
 
     return fiducial_point
 
 if __name__ == '__main__':
     #Se cargan los datos de ecg
     
-    path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
+    #path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
+    path = 'C:/Users/melis/Desktop/Bioseñales/MIMIC/MIMIC_arritmia.txt'
 
-    ecg_70=pd.read_csv(path,sep=" ")
-    # Se transponen los datos  (68,240000) = (individuo, observaciones)
-    ecg_70=ecg_70.transpose()
+    ecg = pd.read_csv(path,sep=" ",index_col=0)
+    #ecg = pd.read_csv(path,sep=" ")
+    #Se transponen los datos  (68,240000) = (individuo, observaciones)
+    ecg = ecg.transpose()
     # Se modifican los índices para que sean de 0 a 67
-    ecg_70.index = list(range(len(ecg_70)))
-    signal=ecg_70.iloc[4]
-    fs=2000
-    Wn_low=100
-    Wn_high=1
+    ecg.index = list(range(len(ecg)))
+    
+    signal=ecg.iloc[1]
+    fs=250
+    Wn_low=60
+    Wn_high=0.5
+    # fs =2000
+    # Wn_low = 100
+    # Wn_high = 1
+    
     #
     gr_r = 0.8
     gr2 = 0.1 * fs # max number of samples for RS distance  
@@ -228,47 +247,30 @@ if __name__ == '__main__':
     gr9 = 0.1 * fs # max of TT2 distance (T2 - end of T wave)
     gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
     
+    t_start = 0
+    t_end = 5
+    plot_original_ecg(signal,0,5,fs)
+    plt.show()
+    
     # Filtrado de la señal
     signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
     
     # Normalización de la señal
-    signal_normalized = normalization(signal_filtered)
-    
-    """
-    # R peak detection
-    library(pracma)
-    gr_r <- 0.8
-    n_R <- (length(ecg)*40)/(fs*60)
-    pikovi <- findpeaks(ecg, minpeakheight = gr_r, minpeakdistance = 0.3 * fs)
-    
-    
-    if (length(pikovi[,2])<n_R){
-      while (gr_r > 0.05){
-        
-        gr_r <- gr_r-0.05
-        print(gr_r)}
-      pikovi <- findpeaks(ecg, minpeakheight = gr_r, minpeakdistance = 0.3 * fs)}
-    
-    locs_R <- pikovi[,2]# + min(t)*fs
-    locs_R <- sort(locs_R) 
-    """
-    
-    # Ubicación de los picos R en la señal
-    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs)
-    
-    
-    
-    plot_original_ecg(signal_normalized, 5,2000)
-    # Promediado de la señal
-    #signal_av = signal_average(signal_normalized, locs_R, fs) 
-    
-    # Extracción de puntos fiduciales de la señal
-    #fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+    signal_normalized = normalization(signal_filtered)   
 
-    #plot_ecg_fiducial_points(fiducial,segundos=2,fs=2000)
+    # Ubicación de los picos R en la señal   
+    locs_R = find_R(signal_normalized, height=gr_r, distance=0.3*fs, fs=fs)  
+        
     
-    #path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
-    #with open(path_fiducial) as f:
-    #    fiducial_points = json.load(f)
-    #Lista_id=[2]   
-    #plot_ecg_fiducial_points2(fiducial_points,Lista_id,segundos=2,fs=2000)
+    plot_original_ecg(signal_normalized,5,10,fs)
+    plt.show()
+    #Promediado de la señal
+    signal_av = signal_average(signal_normalized, locs_R, fs) 
+    
+    
+    #Extracción de puntos fiduciales de la señal
+    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+    
+    # plot puntos fiduciales
+
+    plot_ecg_fiducial_points(fiducial,0,5,fs)
