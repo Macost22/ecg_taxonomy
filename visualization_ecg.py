@@ -141,7 +141,7 @@ def plot_ecg_fiducial_points(fiducial,t_start,t_end,fs):
     plot_ecg(tiempo[t_start:t_end],ecg[t_start:t_end],titulo)
 
     for key in fiducial.keys(): 
-        if key != "ecg_average" and key != 'tiempo':
+        if key != "ecg_average" and key != 'tiempo' and key != 'locs_R':
             for i in range(0,len(fiducial[key])):
                 y=(fiducial[key][i])
                 x=y/fs   

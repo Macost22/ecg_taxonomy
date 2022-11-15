@@ -9,6 +9,7 @@ import json
 import matplotlib.pyplot as plt
 from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_points2
 from fiducial_point_detection import find_fiducial_points, find_R, butterworth_bandpass_filter, signal_average, normalization
+from ecg_taxonomy import taxonomy
 
 fiducial =[]
 
@@ -40,13 +41,14 @@ def main(signal, fs, Wn_low, Wn_high):
     signal_av = signal_average(signal_normalized, locs_R, fs) 
     
     # Extracción de puntos fiduciales de la señal
-    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
+    fiducial['locs_R'] = locs_R
     
     return fiducial        
     
     
 def load_data_personality_traits(file_path):
-    ecg_70=pd.read_csv(path,sep=" ")
+    ecg_70=pd.read_csv(file_path,sep=" ")
     # Se transponen los datos  (68,240000) = (individuo, observaciones)
     ecg_70=ecg_70.transpose()
     # Se modifican los índices para que sean de 0 a 67
@@ -70,35 +72,28 @@ if __name__ == '__main__':
     
     # Path de los ecg a analizar
     # Estos tiene una fs= 2000,  Wn_low = 100 y Wn_high = 1
-    path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
+    #path='C:/Users/melis/Desktop/Bioseñales/ECG_veronica/ecg_70.txt'
     
     # Estos tiene una fs= 250,  Wn_low = 60 y Wn_high = 0.5
     path_arritmia = 'C:/Users/melis/Desktop/Bioseñales/MIMIC/MIMIC_arritmia.txt'
     signals = load_data_arrhythmia(path_arritmia)
     
+    fs=250
+    
     # Se analiza cada ecg dentro del ciclo for, para así obtener los puntos fiduciales
     for signal in range(len(signals)):
-            print(signal)
+            print('paciente: {}'.format(signal))
             ecg = signals.iloc[signal]
             ecg_fiducial = main(signal = ecg, fs = 250, Wn_low = 60, Wn_high = 0.5)
-            fiducial.append(ecg_fiducial)   
+            fiducial.append(ecg_fiducial)
+            
+    # for persona in range(len(fiducial)):
+    #     paciente = fiducial[persona]
+        
+    #     print('Paciente {}'.format(persona))
+    #     taxonomy(paciente, fs)
 
     
-#%%
-
-
-#path_fiducial='C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points.json'
-path_fiducial= 'C:/Users/melis/Desktop/Bioseñales/ECG-Analysis/fiducial_points_True.json'
-with open(path_fiducial) as f:
-    fiducial_pooints = json.load(f)
-    
-  
-    
-start=10
-end=20
-plot_ecg_fiducial_points2(fiducial_pooints,[4],start,end,fs=250)
-plt.show()
-plot_ecg_fiducial_points(fiducial[4],start,end,fs=250)
 
                 
                 

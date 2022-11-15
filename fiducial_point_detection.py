@@ -13,6 +13,7 @@ from visualization_ecg import plot_ecg_fiducial_points, plot_ecg_fiducial_points
 import json
 import matplotlib.pyplot as plt
 
+
 def butterworth(cutoff, fs, order,btype):
     nyq = 0.5 * fs
     normal_cutoff = cutoff / nyq
@@ -146,9 +147,10 @@ def find_P1(signal, locs_P, gr6):
     for kk in locs_P:
         start = kk
         end = int(start - gr6)
-        if end > 0:
-            ocs = np.argmin(signal[end:start])
-            locs_P1.append(end + ocs)
+        if end < 0:
+            end = 0
+        ocs = np.argmin(signal[end:start])
+        locs_P1.append(end + ocs)
     return locs_P1
     
 def find_P2(signal, locs_P, gr7):
@@ -272,5 +274,4 @@ if __name__ == '__main__':
     fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
     
     # plot puntos fiduciales
-
     plot_ecg_fiducial_points(fiducial,0,5,fs)
