@@ -11,6 +11,7 @@ from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_point
 from fiducial_point_detection import find_fiducial_points, find_R, butterworth_bandpass_filter, signal_average, normalization
 from ecg_taxonomy import taxonomy
 
+
 fiducial =[]
 
 
@@ -29,7 +30,7 @@ def main(signal, fs, Wn_low, Wn_high):
     gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
     
     # Filtrado de la señal
-    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
+    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 2)
     
     # Normalización de la señal
     signal_normalized = normalization(signal_filtered)
@@ -41,7 +42,7 @@ def main(signal, fs, Wn_low, Wn_high):
     signal_av = signal_average(signal_normalized, locs_R, fs) 
     
     # Extracción de puntos fiduciales de la señal
-    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
+    fiducial = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
     fiducial['locs_R'] = locs_R
     
     return fiducial        

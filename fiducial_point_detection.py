@@ -12,6 +12,7 @@ from scipy.signal import butter, filtfilt
 from visualization_ecg import plot_ecg_fiducial_points, plot_ecg_fiducial_points2, plot_original_ecg
 import json
 import matplotlib.pyplot as plt
+import neurokit2 as nk
 
 
 def butterworth(cutoff, fs, order,btype):
@@ -147,8 +148,6 @@ def find_P1(signal, locs_P, gr6):
     for kk in locs_P:
         start = kk
         end = int(start - gr6)
-        if end < 0:
-            end = 0
         ocs = np.argmin(signal[end:start])
         locs_P1.append(end + ocs)
     return locs_P1
@@ -180,7 +179,23 @@ def find_T2(signal, locs_T, gr9):
         locs_T2.append(ocs + locs_T[kk])
     return locs_T2
 
+def find_fiducial_points_neurokit2(signal, fs):
+
+    n_valores = len(signal)
+    stop = n_valores/fs
+    tiempo = np.linspace(0,stop,n_valores)
     
+    # Extract R-peaks locations
+    _, rpeaks = nk.ecg_peaks(signal, sampling_rate=fs)
+
+    # Delineate
+    Signal, waves_peak = nk.ecg_delineate(signal, rpeaks, sampling_rate=fs, method="dwt")
+
+    waves_peak['ECG_R_Peaks'] = rpeaks["ECG_R_Peaks"]
+    waves_peak['ECG'] = signal
+    waves_peak['Tiempo'] = tiempo
+    
+    return waves_peak
 
 def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     fiducial_point=dict()
@@ -191,15 +206,17 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     tiempo = np.linspace(0,stop,n_valores)
 
     # Encontrar R 
-    locs_Rav = find_R(signal, gr_r, 0.3*fs, fs)
+    #locs_Rav = find_R(signal, gr_r, 0.3*fs, fs)
+    _, locs_Rav = nk.ecg_peaks(signal, sampling_rate=fs)
+    locs_Rav = locs_Rav["ECG_R_Peaks"]
     # Encontrar S
-    locs_S = find_S(signal, locs_Rav, gr2)
+    locs_S = find_S(signal, locs_Rav[1:], gr2)
     # Encontrar S2
     locs_S2 = find_S2(signal, locs_S, gr10)
     # Encontrar T
     locs_T = find_T(signal, locs_S, gr3)
     # Encontrar Q
-    locs_Q = find_Q(signal, locs_Rav, gr4)
+    locs_Q = find_Q(signal, locs_Rav[1:], gr4)
     # Encontrar P
     locs_P = find_P(signal, locs_Q, gr5)
     # Encontrar P1
@@ -211,8 +228,8 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     # Encontrar T2
     locs_T2 = find_T2(signal, locs_T, gr9) 
     
-    fiducial_point={'locs_Rav':locs_Rav, 'locs_S':locs_S,'locs_S2':locs_S2, 'locs_T':locs_T, 'locs_Q':locs_Q, 
-                   'locs_P':locs_P, 'locs_P1':locs_P1, 'locs_P2':locs_P2, 'locs_T1':locs_T1, 'locs_T2':locs_T2,'ecg_average':signal,'tiempo':tiempo}
+    fiducial_point={'ECG_R_Peaks':locs_Rav[1:], 'ECG_S_Peaks':locs_S,'ECG_R_Offsets':locs_S2, 'ECG_T_Peaks':locs_T, 'ECG_Q_Peaks':locs_Q, 
+                   'ECG_P_Peaks':locs_P, 'ECG_P_Onsets':locs_P1, 'ECG_P_Offsets':locs_P2, 'ECG_T_Onsets':locs_T1, 'ECG_T_Offsets':locs_T2,'ECG':signal,'Tiempo':tiempo}
 
     return fiducial_point
 
@@ -233,11 +250,8 @@ if __name__ == '__main__':
     fs=250
     Wn_low=60
     Wn_high=0.5
-    # fs =2000
-    # Wn_low = 100
-    # Wn_high = 1
+
     
-    #
     gr_r = 0.8
     gr2 = 0.1 * fs # max number of samples for RS distance  
     gr3 = 0.32 * fs # max number of samples for ST distance = 0.32[s]*fs #640
@@ -245,33 +259,52 @@ if __name__ == '__main__':
     gr5 = 0.2 * fs # max PQ distance
     gr6 = 0.08 *fs # max PP1 distance (P1 - beginning of P wave) 
     gr7 = 0.065 * fs  # max PP2 distance (P2 - end of P wave)
-    gr8 = 0.1 * fs # max TT1 distance (T1 - beginning of T wave)
-    gr9 = 0.1 * fs # max of TT2 distance (T2 - end of T wave)
+    gr8 = 0.08 * fs # max TT1 distance (T1 - beginning of T wave)
+    gr9 = 0.08 * fs # max of TT2 distance (T2 - end of T wave)
     gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
     
     t_start = 0
     t_end = 5
-    plot_original_ecg(signal,0,5,fs)
+    plot_original_ecg(signal,t_start,t_end,fs)
     plt.show()
     
     # Filtrado de la señal
-    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
+    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 2)
     
-    # Normalización de la señal
-    signal_normalized = normalization(signal_filtered)   
+    # Filtrado con neurokit
+    signal_filtered_nk = nk.ecg_clean(signal, sampling_rate=fs, method="neurokit")
+    
 
-    # Ubicación de los picos R en la señal   
+    
+    # # Normalización de la señal
+    signal_normalized_nk = normalization(signal_filtered_nk)  
+    signal_normalized = normalization(signal_filtered)  
+
+    # # Ubicación de los picos R en la señal   
     locs_R = find_R(signal_normalized, height=gr_r, distance=0.3*fs, fs=fs)  
         
     
-    plot_original_ecg(signal_normalized,5,10,fs)
-    plt.show()
-    #Promediado de la señal
+    # plot_original_ecg(signal_normalized,5,10,fs)
+    # plt.show()
+    # #Promediado de la señal
     signal_av = signal_average(signal_normalized, locs_R, fs) 
     
     
-    #Extracción de puntos fiduciales de la señal
-    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+    # #Extracción de puntos fiduciales de la señal
+    fiducial_neurokit =  find_fiducial_points_neurokit2(signal_normalized_nk, fs)
+    fiducial = find_fiducial_points(signal_normalized_nk,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
+    fiducial2 = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
     
-    # plot puntos fiduciales
-    plot_ecg_fiducial_points(fiducial,0,5,fs)
+    titulo1='Neurokit'
+    titulo2='Algoritmo R'
+    plot_ecg_fiducial_points(fiducial_neurokit,t_start,t_end,fs,titulo1)
+    plt.show()
+    plot_ecg_fiducial_points(fiducial,t_start,t_end,fs,titulo2)
+
+    
+    
+
+
+    
+
+
