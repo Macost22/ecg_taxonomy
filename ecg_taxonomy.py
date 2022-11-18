@@ -9,104 +9,109 @@ import pandas as pd
 import json
 import numpy as np
 from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_points2, plot_original_ecg
-from fiducial_point_detection import find_fiducial_points, find_R, butterworth_bandpass_filter, signal_average, normalization
+from fiducial_point_detection import find_fiducial_points, find_R, butterworth_bandpass_filter, signal_average, normalization, find_fiducial_points_neurokit2
 import matplotlib.pyplot as plt
-
+import neurokit2 as nk
+from scipy.signal import find_peaks, peak_prominences
 
 """
 Definición de funciones para realizar medidas en el ECG
 """
 # Duración de la onda P
-def duracion_P(paciente,fs):
+def duracion_P(paciente, fs):
     duracion_P = []
     
-    P1=paciente['locs_P1']
-    P2=paciente['locs_P2']
-    
-    P1 = [np.nan if x == "NA" else x for x in P1]
-    P2 = [np.nan if x == "NA" else x for x in P2]
+    P1=paciente['ECG_P_Onsets']
+    P2=paciente['ECG_P_Offsets']    
 
     for i in range(len(P1)):
         duracion_p = (P2[i]-P1[i])/fs
         duracion_P.append(duracion_p*1000)
+        
+    duracion_P = [x for x in duracion_P if ~np.isnan(x)]
     return duracion_P 
 
 # Amplitud onda P
-def amplitud_P(paciente,fs):
-    ECG = paciente['ecg_average']
+def amplitud_P(paciente, signal, fs):
+    ECG = signal
     amplitud_P = []
-    P = paciente['locs_P']
-    P2 = fiducial['locs_P2']
-    P = [np.nan if x == "NA" else x for x in P]
+    
+    P = paciente['ECG_P_Peaks']
+    P2 = paciente['ECG_P_Offsets']
+
     for i in range(len(P)):
         amplitud_p = ECG[P[i]]
-        amplitud_p2 = ECG[P2[i]]
+        amplitud_p2 = ECG[P2[i]]        
         amplitud_P.append(amplitud_p - amplitud_p2)
+    
+    amplitud_P = [x for x in amplitud_P if ~np.isnan(x)]
     return amplitud_P
+
+def amplitud_P2(paciente, signal):
+    amplitud = peak_prominences(signal, fiducial['ECG_P_Peaks'], wlen=None)
+    return amplitud[0]
 
 # Duración complejo QRS
 def duracion_QRS(paciente,fs):
     duracion_QRS = []
-    Q = paciente['locs_Q']
-    S = paciente['locs_S']
+    Q = paciente['ECG_Q_Peaks']
+    S = paciente['ECG_S_Peaks']
     
-    Q = [np.nan if x == "NA" else x for x in Q]
-    S = [np.nan if x == "NA" else x for x in S]
     for i in range(len(Q)):
         duracion_qrs = ((S[i]-Q[i])/fs)
         duracion_QRS.append(duracion_qrs*1000)
+        
+    duracion_QRS = [x for x in duracion_QRS if ~np.isnan(x)]
     return duracion_QRS
 
 # Amplitud T
-def amplitud_T(paciente,fs):
+def amplitud_T(paciente, signal, fs):
+    ECG = signal
     amplitud_T = []
-    ECG = paciente['ecg_average']
-    T = paciente['locs_T']
-    T = [np.nan if x == "NA" else x for x in T]
+    
+    T = paciente['ECG_T_Peaks']
+    T2 = paciente['ECG_T_Offsets']
    
     for i in range(len(T)):
-        try:
-            amplitud_t = ECG[T[i]]
-            amplitud_T.append(amplitud_t)
-        except:
-            continue
+        amplitud_t = ECG[T[i]]
+        amplitud_t2 = ECG[T2[i]]
+        amplitud_T.append(amplitud_t - amplitud_t2)
+
+    amplitud_T = [x for x in amplitud_T if ~np.isnan(x)]   
     return amplitud_T
 
 # Bloqueo AV
 # Cuando la duración del segmento PR < 200 ms
 def duracion_PR(paciente,fs):
     duracion_PR=[]
-    P1=paciente['locs_P1']
-    R=paciente['locs_Rav']
+    P1=paciente['ECG_P_Onsets']
+    R=paciente['ECG_R_Peaks']
     
-    P1 = [np.nan if x == "NA" else x for x in P1]
-    R = [np.nan if x == "NA" else x for x in R]
     for i in range(len(P1)):
         duracion_pr = (R[i]-P1[i])/fs
         duracion_PR.append(duracion_pr*1000)
+        
+    duracion_PR = [x for x in duracion_PR if ~np.isnan(x)]
     return duracion_PR
 
 # Latido atrial prematuro
 # Cuando amplitud de P1 y amplitud de P2 son diferentes
 
-def amplitud_P1_P2(paciente,fs):
+def amplitud_P1_P2(paciente,signal,fs):
     amplitud_P1 = []
     amplitud_P2 = []
-    ECG = paciente['ecg_average']
-    P1 = paciente['locs_P1']
-    P2 = paciente['locs_P2']
-    
-    P1 = [np.nan if x == "NA" else x for x in P1]
-    P2 = [np.nan if x == "NA" else x for x in P2]
+    ECG = signal
+    P1 = paciente['ECG_P_Onsets']
+    P2 = paciente['ECG_P_Offsets']
    
     for i in range(len(P1)):
-        try:
-            amplitud_p1 = ECG[P1[i]]
-            amplitud_p2 = ECG[P2[i]]
-            amplitud_P1.append(amplitud_p1)
-            amplitud_P2.append(amplitud_p2)
-        except:
-            continue
+        amplitud_p1 = ECG[P1[i]]
+        amplitud_p2 = ECG[P2[i]]
+        amplitud_P1.append(amplitud_p1)
+        amplitud_P2.append(amplitud_p2)
+
+    amplitud_P1 = [x for x in amplitud_P1 if ~np.isnan(x)]
+    amplitud_P2 = [x for x in amplitud_P2 if ~np.isnan(x)]
     return amplitud_P1, amplitud_P2
 
 # Calculo de la frecuencia cardíaca y duracion RR
@@ -123,8 +128,8 @@ def HR_mean(paciente,fs):
     -----------
     Frecuencia cardíaca media
     """
-    R=paciente['locs_R']
-    R = [np.nan if x == "NA" else x for x in R]
+    R=paciente['ECG_R_Peaks']
+
     RR=[]
     HR=[]
     for ind in range(len(R)-1):
@@ -133,18 +138,20 @@ def HR_mean(paciente,fs):
     HR_mean=round(np.mean(HR))
     RR = list(map(lambda x: x * 1000, RR))
     RR =  np.round(RR,3)
+    RR = [x for x in RR if ~np.isnan(x)]
     return HR_mean, RR
 """
 TAXONOMY
 """
 
-def taxonomy(paciente,fs):
+def taxonomy(paciente, signal, fs):    
+        
     # La onda P debe durar menos de 120 ms
     duracionP = np.mean(duracion_P(paciente,fs))
     print('Duración onda P = {} ms'.format(round(duracionP,2)))
     
     # La amplitud de la onda P debe ester entre 0.15 y 0.2 mV
-    amplitudP = np.mean(amplitud_P(paciente,fs))
+    amplitudP = np.mean(amplitud_P(paciente,signal, fs))
     print('Amplitud onda P = {} mV'.format(round(amplitudP,2)))
     
     # La duración del complejo QRS debe estar entre 80 y 120 ms
@@ -152,14 +159,14 @@ def taxonomy(paciente,fs):
     print('Duración de QRS = {} ms'.format(round(duracionQRS,2)))
     
     # La amplitud de la onda T debe ser positiva
-    amplitudT = np.mean(amplitud_T(paciente,fs))
+    amplitudT = np.mean(amplitud_T(paciente,signal,fs))
     print('Amplitud onda T = {} mV'.format(round(amplitudT,2)))
     
     # El segmento PR debe durar menos de 200 ms 
     duracionPR = np.mean(duracion_PR(paciente, fs))
     print('Duración segmento PR = {} ms'.format(round(duracionPR,2)))
     
-    amplitudP1, amplitudP2 = amplitud_P1_P2(paciente,fs)
+    amplitudP1, amplitudP2 = amplitud_P1_P2(paciente,signal,fs)
     amplitudP1 = np.mean(amplitudP1)
     amplitudP2 = np.mean(amplitudP2)
     print('Amplitud P1 = {} y P2 = {} mV'.format(round(amplitudP1,2),round(amplitudP2,2)))
@@ -175,16 +182,16 @@ def taxonomy(paciente,fs):
     if duracionPR > 200:
         print('Bloqueo AV \n')
     
-    elif (amplitudP1 - amplitudP2) > 0.05:
+    if (amplitudP1 - amplitudP2) > 0.05:
         print('Latido atrial prematuro \n')
     
-    elif duracionQRS > 120:
+    if duracionQRS > 120:
         print('Bloqueo de rama \n')
     
-    elif HRmean < 60:
+    if HRmean < 60:
         print('Bradicardia \n')
     
-    elif HRmean > 100:
+    if HRmean > 100:
         print('Taquicardia')
         if  duracionQRS < 120:
             print('Taquicardia supraventricular \n')
@@ -206,7 +213,9 @@ if __name__ == '__main__':
     # Estos tiene una fs= 250,  Wn_low = 60 y Wn_high = 0.5
     path_arritmia = 'C:/Users/melis/Desktop/Bioseñales/MIMIC/MIMIC_arritmia.txt'
     signals = load_data_arrhythmia(path_arritmia)
-    signal = signals.iloc[0]
+    #ver 1 en 0 y 5000
+    
+    signal = signals.iloc[205]
     
     fs=250
     Wn_low = 60
@@ -224,38 +233,45 @@ if __name__ == '__main__':
     gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
     
     # Filtrado de la señal
-    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
+    #signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 3)
+    signal_filtered = nk.ecg_clean(signal, sampling_rate=fs, method="neurokit")
     
     # Normalización de la señal
     signal_normalized = normalization(signal_filtered)
     
-    # Ubicación de los picos R en la señal
-    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs, fs=fs)
-    
-    # Promediado de la señal
-    signal_av = signal_average(signal_normalized, locs_R, fs) 
-    
     # Extracción de puntos fiduciales de la señal
-    fiducial = find_fiducial_points(signal_av,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
-    fiducial['locs_R'] = locs_R
     
-    plot_original_ecg(signal_normalized,0,5,fs)
+    fiducial = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
+    fiducial_nk = find_fiducial_points_neurokit2(signal_normalized,fs)
+       
+    # Visualización de puntos fiduciales
+    t_start = 0
+    t_end = 5
+    plot_original_ecg(signal,t_start,t_end,fs)
     plt.show()
-    plot_ecg_fiducial_points(fiducial,0,5,fs)
     
-    taxonomy(fiducial, fs)
+    titulo1 = 'ALGORTIMO R'
+    titulo2 = 'NEUROKIT'
+    plot_ecg_fiducial_points(fiducial,t_start,t_end,fs,titulo1)
+    plt.show()    
+    plot_ecg_fiducial_points(fiducial_nk,t_start,t_end,fs,titulo2)
     
+    taxonomy(fiducial, signal, fs)
+    #taxonomy(fiducial_nk, signal, fs)
+
 #%%
-#duracionP = duracion_P(fiducial,fs)
-#duracionPmean = np.mean(duracion_P(fiducial,fs))
+ECG = signal
+amplitud_P = []
 
+P = fiducial_nk['ECG_P_Peaks']
+P2 = fiducial_nk['ECG_P_Offsets']
 
-    
+for i in range(len(P)):
+    amplitud_p = ECG[P[i]]
+    if np.isnan(amplitud_p(i)) == True:
+        continue    
+    amplitud_p2 = ECG[P2[i]]        
+    amplitud_P.append(amplitud_p - amplitud_p2)
 
+#amplitud_P = [x for x in amplitud_P if ~np.isnan(x)]
 
-
-        
-
-    
-    
-    
