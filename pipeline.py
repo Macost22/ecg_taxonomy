@@ -8,11 +8,13 @@ import pandas as pd
 import json
 import matplotlib.pyplot as plt
 from visualization_ecg import  plot_ecg_fiducial_points, plot_ecg_fiducial_points2
-from fiducial_point_detection import find_fiducial_points, find_R, butterworth_bandpass_filter, signal_average, normalization
+from fiducial_point_detection import find_fiducial_points, find_fiducial_points_neurokit2, normalization
 from ecg_taxonomy import taxonomy
+import neurokit2 as nk
 
 
-fiducial =[]
+fiducial = []
+fiducial_nk = []
 
 
 def main(signal, fs, Wn_low, Wn_high):
@@ -29,23 +31,22 @@ def main(signal, fs, Wn_low, Wn_high):
     gr9 = 0.1 * fs # max of TT2 distance (T2 - end of T wave)
     gr10 = 0.04 * fs # max of SS2 distance (S2 - end of QRS complex)
     
-    # Filtrado de la señal
-    signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 2)
+    # Filtrado de la señal con el algoritmo de R
+    #signal_filtered = butterworth_bandpass_filter(signal, Wn_low, Wn_high, fs, 2)
+    
+    # Filtrado de la señal con neurokit2
+    signal_filtered = nk.ecg_clean(signal, sampling_rate=fs, method="neurokit")
     
     # Normalización de la señal
     signal_normalized = normalization(signal_filtered)
     
-    # Ubicación de los picos R en la señal
-    locs_R = find_R(signal_normalized, height=0.8, distance=0.3*fs, fs=fs)
-    
-    # Promediado de la señal
-    signal_av = signal_average(signal_normalized, locs_R, fs) 
-    
-    # Extracción de puntos fiduciales de la señal
+    # Extracción de puntos fiduciales de la señal con algoritmo de R
     fiducial = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
-    fiducial['locs_R'] = locs_R
     
-    return fiducial        
+    # Extracción de puntos fiduciales de la señal con algoritmo de neurokit2
+    fiducial_nk = find_fiducial_points_neurokit2(signal_normalized, gr_r,fs)
+    
+    return fiducial, fiducial_nk     
     
     
 def load_data_personality_traits(file_path):
@@ -85,16 +86,28 @@ if __name__ == '__main__':
     for signal in range(len(signals)):
             print('paciente: {}'.format(signal))
             ecg = signals.iloc[signal]
-            ecg_fiducial = main(signal = ecg, fs = 250, Wn_low = 60, Wn_high = 0.5)
-            fiducial.append(ecg_fiducial)
+            ecg_fiducial, ecg_fiducial_nk = main(signal = ecg, fs = 250, Wn_low = 60, Wn_high = 0.5)
             
-    # for persona in range(len(fiducial)):
-    #     paciente = fiducial[persona]
-        
-    #     print('Paciente {}'.format(persona))
-    #     taxonomy(paciente, fs)
-
-    
+            ecg_fiducial['signal']=ecg
+            ecg_fiducial_nk['signal']=ecg
+            
+            fiducial.append(ecg_fiducial)
+            fiducial_nk.append(ecg_fiducial_nk)
+           
+    for persona in range(len(fiducial)):
+         paciente = fiducial[persona]
+         paciente_nk = fiducial_nk[persona]
+         signal = fiducial[persona]['signal']       
+         
+      
+         print('Paciente {} \n'.format(persona))
+         print('Taxonomia con R')
+         taxonomy(paciente, signal,fs)
+         
+         print('-----------------------------')
+         print('Taxonomía con neurokit2 \n')
+         taxonomy(paciente_nk, signal,fs)
+         print('###################################')
 
                 
                 

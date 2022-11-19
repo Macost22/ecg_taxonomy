@@ -24,11 +24,12 @@ def duracion_P(paciente, fs):
     P1=paciente['ECG_P_Onsets']
     P2=paciente['ECG_P_Offsets']    
 
-    for i in range(len(P1)):
-        duracion_p = (P2[i]-P1[i])/fs
+    for i,j in zip(P1,P2):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        duracion_p = (j-i)/fs
         duracion_P.append(duracion_p*1000)
         
-    duracion_P = [x for x in duracion_P if ~np.isnan(x)]
     return duracion_P 
 
 # Amplitud onda P
@@ -39,12 +40,13 @@ def amplitud_P(paciente, signal, fs):
     P = paciente['ECG_P_Peaks']
     P2 = paciente['ECG_P_Offsets']
 
-    for i in range(len(P)):
-        amplitud_p = ECG[P[i]]
-        amplitud_p2 = ECG[P2[i]]        
+    for (i,j) in zip(P,P2):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        amplitud_p = ECG[i]
+        amplitud_p2 = ECG[j]      
         amplitud_P.append(amplitud_p - amplitud_p2)
     
-    amplitud_P = [x for x in amplitud_P if ~np.isnan(x)]
     return amplitud_P
 
 def amplitud_P2(paciente, signal):
@@ -57,11 +59,12 @@ def duracion_QRS(paciente,fs):
     Q = paciente['ECG_Q_Peaks']
     S = paciente['ECG_S_Peaks']
     
-    for i in range(len(Q)):
-        duracion_qrs = ((S[i]-Q[i])/fs)
+    for i,j in zip(Q,S):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        duracion_qrs = (j-i)/fs
         duracion_QRS.append(duracion_qrs*1000)
         
-    duracion_QRS = [x for x in duracion_QRS if ~np.isnan(x)]
     return duracion_QRS
 
 # Amplitud T
@@ -72,12 +75,13 @@ def amplitud_T(paciente, signal, fs):
     T = paciente['ECG_T_Peaks']
     T2 = paciente['ECG_T_Offsets']
    
-    for i in range(len(T)):
-        amplitud_t = ECG[T[i]]
-        amplitud_t2 = ECG[T2[i]]
+    for i,j in zip(T,T2):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        amplitud_t = ECG[i]
+        amplitud_t2 = ECG[j]
         amplitud_T.append(amplitud_t - amplitud_t2)
-
-    amplitud_T = [x for x in amplitud_T if ~np.isnan(x)]   
+ 
     return amplitud_T
 
 # Bloqueo AV
@@ -87,11 +91,13 @@ def duracion_PR(paciente,fs):
     P1=paciente['ECG_P_Onsets']
     R=paciente['ECG_R_Peaks']
     
-    for i in range(len(P1)):
-        duracion_pr = (R[i]-P1[i])/fs
+    for i,j in zip(P1,R):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        duracion_pr = (j-i)/fs
         duracion_PR.append(duracion_pr*1000)
         
-    duracion_PR = [x for x in duracion_PR if ~np.isnan(x)]
+    #duracion_PR = [x for x in duracion_PR if ~np.isnan(x)]
     return duracion_PR
 
 # Latido atrial prematuro
@@ -104,14 +110,14 @@ def amplitud_P1_P2(paciente,signal,fs):
     P1 = paciente['ECG_P_Onsets']
     P2 = paciente['ECG_P_Offsets']
    
-    for i in range(len(P1)):
-        amplitud_p1 = ECG[P1[i]]
-        amplitud_p2 = ECG[P2[i]]
+    for i,j in zip(P1,P2):
+        if np.isnan(i) == True or np.isnan(j) == True:
+            continue
+        amplitud_p1 = ECG[i]
+        amplitud_p2 = ECG[j]
         amplitud_P1.append(amplitud_p1)
         amplitud_P2.append(amplitud_p2)
 
-    amplitud_P1 = [x for x in amplitud_P1 if ~np.isnan(x)]
-    amplitud_P2 = [x for x in amplitud_P2 if ~np.isnan(x)]
     return amplitud_P1, amplitud_P2
 
 # Calculo de la frecuencia cardíaca y duracion RR
@@ -178,15 +184,19 @@ def taxonomy(paciente, signal, fs):
     
     # El intervalo RR debe ser regular
     diffRR = np.diff(RR)
+    sano = True
     
     if duracionPR > 200:
         print('Bloqueo AV \n')
+        sano = False
     
     if (amplitudP1 - amplitudP2) > 0.05:
         print('Latido atrial prematuro \n')
+        sano = False
     
     if duracionQRS > 120:
         print('Bloqueo de rama \n')
+        sano = False
     
     if HRmean < 60:
         print('Bradicardia \n')
@@ -195,7 +205,9 @@ def taxonomy(paciente, signal, fs):
         print('Taquicardia')
         if  duracionQRS < 120:
             print('Taquicardia supraventricular \n')
-    else:
+        sano = False
+        
+    if sano:
         print('sano')
              
 
@@ -215,7 +227,7 @@ if __name__ == '__main__':
     signals = load_data_arrhythmia(path_arritmia)
     #ver 1 en 0 y 5000
     
-    signal = signals.iloc[205]
+    signal = signals.iloc[279]
     
     fs=250
     Wn_low = 60
@@ -242,7 +254,7 @@ if __name__ == '__main__':
     # Extracción de puntos fiduciales de la señal
     
     fiducial = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10)
-    fiducial_nk = find_fiducial_points_neurokit2(signal_normalized,fs)
+    fiducial_nk = find_fiducial_points_neurokit2(signal_normalized,gr_r,fs)
        
     # Visualización de puntos fiduciales
     t_start = 0
@@ -257,21 +269,5 @@ if __name__ == '__main__':
     plot_ecg_fiducial_points(fiducial_nk,t_start,t_end,fs,titulo2)
     
     taxonomy(fiducial, signal, fs)
-    #taxonomy(fiducial_nk, signal, fs)
-
-#%%
-ECG = signal
-amplitud_P = []
-
-P = fiducial_nk['ECG_P_Peaks']
-P2 = fiducial_nk['ECG_P_Offsets']
-
-for i in range(len(P)):
-    amplitud_p = ECG[P[i]]
-    if np.isnan(amplitud_p(i)) == True:
-        continue    
-    amplitud_p2 = ECG[P2[i]]        
-    amplitud_P.append(amplitud_p - amplitud_p2)
-
-#amplitud_P = [x for x in amplitud_P if ~np.isnan(x)]
-
+    print('--------------------------------')
+    taxonomy(fiducial_nk, signal, fs)

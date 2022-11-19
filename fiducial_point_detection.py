@@ -179,19 +179,25 @@ def find_T2(signal, locs_T, gr9):
         locs_T2.append(ocs + locs_T[kk])
     return locs_T2
 
-def find_fiducial_points_neurokit2(signal, fs):
+def find_fiducial_points_neurokit2(signal, gr_r, fs):
 
     n_valores = len(signal)
     stop = n_valores/fs
     tiempo = np.linspace(0,stop,n_valores)
     
     # Extract R-peaks locations
-    _, rpeaks = nk.ecg_peaks(signal, sampling_rate=fs)
-
+    _, locs_R = nk.ecg_peaks(signal, sampling_rate=fs)
+    
+    
     # Delineate
-    Signal, waves_peak = nk.ecg_delineate(signal, rpeaks, sampling_rate=fs, method="dwt")
+    if locs_R["ECG_R_Peaks"].size == 0:
+        locs_R = find_R(signal, gr_r, 0.3*fs, fs)
+        locs_R = {'ECG_R_Peaks':locs_R,'sampling_rate':fs}
+        
+    
+    Signal, waves_peak = nk.ecg_delineate(signal, locs_R, sampling_rate=fs, method="dwt")
 
-    waves_peak['ECG_R_Peaks'] = rpeaks["ECG_R_Peaks"]
+    waves_peak['ECG_R_Peaks'] = locs_R['ECG_R_Peaks']
     waves_peak['ECG'] = signal
     waves_peak['Tiempo'] = tiempo
     
@@ -206,17 +212,19 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     tiempo = np.linspace(0,stop,n_valores)
 
     # Encontrar R 
-    #locs_Rav = find_R(signal, gr_r, 0.3*fs, fs)
-    _, locs_Rav = nk.ecg_peaks(signal, sampling_rate=fs)
-    locs_Rav = locs_Rav["ECG_R_Peaks"]
+    _, locs_R = nk.ecg_peaks(signal, sampling_rate=fs)
+    locs_R = locs_R["ECG_R_Peaks"]
+    
+    if locs_R.size == 0:
+        locs_R = find_R(signal, gr_r, 0.3*fs, fs)
     # Encontrar S
-    locs_S = find_S(signal, locs_Rav[1:], gr2)
+    locs_S = find_S(signal, locs_R[1:], gr2)
     # Encontrar S2
     locs_S2 = find_S2(signal, locs_S, gr10)
     # Encontrar T
     locs_T = find_T(signal, locs_S, gr3)
     # Encontrar Q
-    locs_Q = find_Q(signal, locs_Rav[1:], gr4)
+    locs_Q = find_Q(signal, locs_R[1:], gr4)
     # Encontrar P
     locs_P = find_P(signal, locs_Q, gr5)
     # Encontrar P1
@@ -228,7 +236,7 @@ def find_fiducial_points(signal,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10):
     # Encontrar T2
     locs_T2 = find_T2(signal, locs_T, gr9) 
     
-    fiducial_point={'ECG_R_Peaks':locs_Rav[1:], 'ECG_S_Peaks':locs_S,'ECG_R_Offsets':locs_S2, 'ECG_T_Peaks':locs_T, 'ECG_Q_Peaks':locs_Q, 
+    fiducial_point={'ECG_R_Peaks':locs_R[1:], 'ECG_S_Peaks':locs_S,'ECG_R_Offsets':locs_S2, 'ECG_T_Peaks':locs_T, 'ECG_Q_Peaks':locs_Q, 
                    'ECG_P_Peaks':locs_P, 'ECG_P_Onsets':locs_P1, 'ECG_P_Offsets':locs_P2, 'ECG_T_Onsets':locs_T1, 'ECG_T_Offsets':locs_T2,'ECG':signal,'Tiempo':tiempo}
 
     return fiducial_point
@@ -245,8 +253,8 @@ if __name__ == '__main__':
     ecg = ecg.transpose()
     # Se modifican los índices para que sean de 0 a 67
     ecg.index = list(range(len(ecg)))
-    
-    signal=ecg.iloc[1]
+    #203 malo
+    signal=ecg.iloc[7]
     fs=250
     Wn_low=60
     Wn_high=0.5
@@ -273,27 +281,16 @@ if __name__ == '__main__':
     
     # Filtrado con neurokit
     signal_filtered_nk = nk.ecg_clean(signal, sampling_rate=fs, method="neurokit")
-    
 
     
-    # # Normalización de la señal
+    # Normalización de la señal
     signal_normalized_nk = normalization(signal_filtered_nk)  
     signal_normalized = normalization(signal_filtered)  
-
-    # # Ubicación de los picos R en la señal   
-    locs_R = find_R(signal_normalized, height=gr_r, distance=0.3*fs, fs=fs)  
-        
+   
     
-    # plot_original_ecg(signal_normalized,5,10,fs)
-    # plt.show()
-    # #Promediado de la señal
-    signal_av = signal_average(signal_normalized, locs_R, fs) 
-    
-    
-    # #Extracción de puntos fiduciales de la señal
-    fiducial_neurokit =  find_fiducial_points_neurokit2(signal_normalized_nk, fs)
+    # Extracción de puntos fiduciales de la señal
+    fiducial_neurokit =  find_fiducial_points_neurokit2(signal_normalized_nk, gr_r, fs)
     fiducial = find_fiducial_points(signal_normalized_nk,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
-    fiducial2 = find_fiducial_points(signal_normalized,fs,gr_r,gr2,gr3,gr4,gr5,gr6,gr7,gr8,gr9,gr10) 
     
     titulo1='Neurokit'
     titulo2='Algoritmo R'
@@ -301,8 +298,7 @@ if __name__ == '__main__':
     plt.show()
     plot_ecg_fiducial_points(fiducial,t_start,t_end,fs,titulo2)
 
-    
-    
+
 
 
     
